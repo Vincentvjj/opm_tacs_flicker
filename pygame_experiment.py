@@ -24,6 +24,8 @@ total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 flicker_freq = 10 # SSVEP for 10Hz
 num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) # how many times it should flicker during each trial
 
+with_stimulation = False # turn to True for stimulation 
+
 print("Total run time without ITI: ~", total_time)
 
 ######### Pygame parameters ##############
@@ -36,6 +38,9 @@ fpsClock = pygame.time.Clock()
 screen = pygame.display.set_mode((0, 0), pygame.RESIZABLE)
 # screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 screen_w, screen_h = pygame.display.get_surface().get_size()
+
+# if with_stimulation: 
+
 
 
 ########## Setup LSL streams ###########
@@ -162,3 +167,13 @@ while True:
     # updates
     pygame.display.flip()
     fpsClock.tick(fps)
+
+
+
+#####
+# task = nidaqmx.Task()
+# task.ao_channels.add_ao_voltage_chan('cDAQ1Mod1/ao1')
+# task.timing.cfg_samp_clk_timing(rate=sfreq, sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS, samps_per_chan=len(signal))
+# task.write(signal)
+# task.start()
+# task.stop()
