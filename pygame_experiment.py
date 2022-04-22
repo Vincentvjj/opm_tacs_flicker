@@ -4,6 +4,7 @@
 from turtle import delay
 import numpy as np 
 from datetime import datetime
+import time
 import sys 
 from random import randrange, randint
 
@@ -14,17 +15,18 @@ from pygame.locals import *
 # LSL for recroding 
 from pylsl import StreamOutlet, StreamInfo, local_clock
 
-
+# stimulation 
+import nidaqmx 
 
 ########## Exerpiment flow paramters ######## 
 flicker_dur = 2000 # 2 seconds
-num_trials_total = 10
+num_trials_total = 20
 total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 
 flicker_freq = 10 # SSVEP for 10Hz
 num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) # how many times it should flicker during each trial
 
-with_stimulation = False # turn to True for stimulation 
+with_stimulation = True # turn to True for stimulation 
 
 print("Total run time without ITI: ~", total_time)
 
@@ -39,7 +41,29 @@ screen = pygame.display.set_mode((0, 0), pygame.RESIZABLE)
 # screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 screen_w, screen_h = pygame.display.get_surface().get_size()
 
-# if with_stimulation: 
+
+
+######### stimulation parameter
+sfreq = 24000
+
+target_freq = 10 # 10hz
+carrier_freq = 40 # 40hz
+
+amplitude = 1 #final resulting current in stimulator in mA p2p (+- amplitude/2 mA)
+duration = int(total_time/1000) + 100 
+print(duration)
+t_samples = np.arange(duration*sfreq)
+carrier = np.sin(2 * np.pi * carrier_freq * t_samples/sfreq)
+modulator = np.sin(2 * np.pi * target_freq * t_samples/sfreq)
+am_stim = amplitude * 0.5 * (carrier * modulator / 2 ) #1mA p2p
+output = np.vstack((am_stim+2.5, am_stim)) #first output to the adc chassis must be positive voltage, so offset 2.5V
+if with_stimulation: 
+    task = nidaqmx.Task()
+    task.ao_channels.add_ao_voltage_chan('cDAQ1Mod1/ao0')  # note: Analog signal chassis
+    task.ao_channels.add_ao_voltage_chan('cDAQ1Mod1/ao1')  # note: tACS
+    task.timing.cfg_samp_clk_timing(rate=sfreq, sample_mode=nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan=len(am_stim))
+    task.write(output)
+    
 
 
 
@@ -67,7 +91,7 @@ lsl_outlet = StreamOutlet(lsl_stream_info)
 display = True
 run_experiment = False
 num_flick = 0
-num_trial = 1
+num_trial = 0
 iti_delaying = False
 delaying = 1
 
@@ -94,6 +118,8 @@ while True:
     # quit condition
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            if with_stimulation:
+                task.close() # closes/stops stimulation
             pygame.quit()
             sys.exit()
 
@@ -105,6 +131,8 @@ while True:
             print("Experiment starts!")
             # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             lsl_outlet.push_sample(marker_id_start, local_clock())
+            if with_stimulation:
+                task.start()
 
             screen.blit(text, text_rect)
             run_experiment = True
@@ -112,24 +140,29 @@ while True:
     # controlling the experiment flow
     else:
         # Run finishes
-        if num_trial == num_trials_total:
+        if num_trial > num_trials_total:
             #ends the experiment
             # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             lsl_outlet.push_sample(marker_id_end, local_clock())
-
+            if with_stimulation:
+                task.close()
             run_experiment = False
+            
             pygame.quit()
             sys.exit()
 
         # Introduce intertrial delay 
         if num_flick  == num_flick_total_trial: 
             # add some random ITI 
-            iti = (randrange(6) + 5)  #500ms to 1000ms 
-            print("random iti ", iti)
+            iti = randrange(400, 900, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 100ms delay from fps
+            print("random iti ", iti + 0.1)
             num_flick = 0
-            num_trial += 1
-            iti_delaying = True
-            ## let the game run through at its fps
+            iti_delaying = False
+            time_bef = local_clock()
+            time_now = local_clock()
+            while(time_now - time_bef < iti):
+                time_now = local_clock()
+            
 
         ## Blinking mechansim
 
@@ -150,30 +183,28 @@ while True:
                 draw_fixation_cross()
 
             num_flick += 1
-            display = not display
-        # If it's in intertrial, don't do anything 
-        else: 
-            # Count how many more to let this loop pass
-            # Since pygame runs at 10hz, 500ms delay will equal to 5 empty loops.
 
-            # print("delaying ", delaying )
-            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
-            if delaying == iti-1: 
-                iti_delaying = False
-                delaying = 1
-            else:
-                delaying +=1
+            if num_flick == num_flick_total_trial:
+                num_trial += 1
+
+            display = not display
+            fpsClock.tick()
+
+        # # If it's in intertrial, don't do anything 
+        # else: 
+        #     # Count how many more to let this loop pass
+        #     # Since pygame runs at 10hz, 500ms delay will equal to 5 empty loops.
+
+        #     # print("delaying ", delaying )
+        #     # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+        #     if delaying == iti-1: 
+        #         iti_delaying = False
+        #         delaying = 1
+        #     else:
+        #         delaying +=1
            
     # updates
     pygame.display.flip()
     fpsClock.tick(fps)
 
 
-
-#####
-# task = nidaqmx.Task()
-# task.ao_channels.add_ao_voltage_chan('cDAQ1Mod1/ao1')
-# task.timing.cfg_samp_clk_timing(rate=sfreq, sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS, samps_per_chan=len(signal))
-# task.write(signal)
-# task.start()
-# task.stop()
