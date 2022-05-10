@@ -49,13 +49,14 @@ sfreq = 24000
 target_freq = 10 # 10hz
 carrier_freq = 40 # 40hz
 
-amplitude = 1 #final resulting current in stimulator in mA p2p (+- amplitude/2 mA)
+amplitude = 0.5 #V p2p, +-0.25v, and tACS will multiply 2 to current, so 1mA p2p
 duration = int(total_time/1000) + 100 
 print(duration)
 t_samples = np.arange(duration*sfreq)
-carrier = np.sin(2 * np.pi * carrier_freq * t_samples/sfreq)
+carrier = np.sin(2 * np.pi * carrier_freq * t_samples/sfreq) * amplitude
 modulator = np.sin(2 * np.pi * target_freq * t_samples/sfreq)
-am_stim = amplitude * 0.5 * (carrier * modulator / 2 ) #1mA p2p
+am_stim = (amplitude + modulator * amplitude) * carrier /2 # 100% modulation depth
+
 output = np.vstack((am_stim+2.5, am_stim)) #first output to the adc chassis must be positive voltage, so offset 2.5V
 if with_stimulation: 
     task = nidaqmx.Task()
@@ -91,7 +92,7 @@ lsl_outlet = StreamOutlet(lsl_stream_info)
 display = True
 run_experiment = False
 num_flick = 0
-num_trial = 0
+num_trial = 1
 iti_delaying = False
 delaying = 1
 
