@@ -7,7 +7,7 @@ from scipy import signal
 sfreq = 24000
 
 target_freq = 2 # 10hz
-carrier_freq = 40 # 40hz
+carrier_freq = 220 # 40hz
 
 amplitude = 1
 duration = 2 # 10 s

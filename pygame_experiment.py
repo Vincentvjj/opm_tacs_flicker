@@ -26,7 +26,7 @@ total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 flicker_freq = 10 # SSVEP for 10Hz
 num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) # how many times it should flicker during each trial
 
-with_stimulation = True # turn to True for stimulation 
+with_stimulation = False # turn to True for stimulation 
 
 print("Total run time without ITI: ~", total_time)
 
@@ -47,7 +47,7 @@ screen_w, screen_h = pygame.display.get_surface().get_size()
 sfreq = 24000
 
 target_freq = 10 # 10hz
-carrier_freq = 40 # 40hz
+carrier_freq = 220 # 220hz
 
 amplitude = 0.5 #V p2p, +-0.25v, and tACS will multiply 2 to current, so 1mA p2p
 duration = int(total_time/1000) + 100 
