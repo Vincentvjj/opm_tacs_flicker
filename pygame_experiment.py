@@ -175,12 +175,14 @@ while True:
             timestamp = local_clock()
 
             if display:
+                # print('on')
                 lsl_outlet.push_sample(marker_id_blink_off, timestamp)
-                screen.fill((0, 0, 0))
+                screen.fill((255, 255, 255))
                 draw_fixation_cross()
             else:
+                # print('off')
                 lsl_outlet.push_sample(marker_id_blink_on, timestamp)
-                screen.fill((255, 255, 255))
+                screen.fill((0, 0, 0))
                 draw_fixation_cross()
 
             num_flick += 1
