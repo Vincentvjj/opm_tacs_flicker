@@ -20,13 +20,14 @@ import nidaqmx
 
 ########## Exerpiment flow paramters ######## 
 flicker_dur = 2000 # 2 seconds
-num_trials_total = 20
+num_trials_total = 5 #20 usually
 total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 
 flicker_freq = 10 # SSVEP for 10Hz
 
 # how many times it should flicker during each trial. Times two, for on and off
-num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) * 2
+num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) 
+
 
 with_stimulation = False # turn to True for stimulation 
 
@@ -38,7 +39,6 @@ pygame.init()
 
 # full cycle of on and off will be 100ms (for 10hz), so for each on and off we need 50ms (20hz)
 fps = int(flicker_freq*2)
-print(fps)
 
 fpsClock = pygame.time.Clock()
  
@@ -56,7 +56,7 @@ carrier_freq = 220 # 220hz
 
 amplitude = 0.5 #V p2p, +-0.25v, and tACS will multiply 2 to current, so 1mA p2p
 duration = int(total_time/1000) + 100 
-print(duration)
+
 t_samples = np.arange(duration*sfreq)
 carrier = np.sin(2 * np.pi * carrier_freq * t_samples/sfreq) * amplitude
 modulator = np.sin(2 * np.pi * target_freq * t_samples/sfreq)
@@ -77,8 +77,11 @@ if with_stimulation:
 # Sets up another LSL stream and these can be recorded with Labrecorder
 marker_id_start = [7]
 marker_id_end = [9]
-marker_id_blink_on = [2]
-marker_id_blink_off = [1]
+marker_id_trial_start = [1]
+marker_id_trial_end = [2]
+# I don't think we need to have the blink on and off marker.. I think a marker for trial start and end is nicer. 
+# marker_id_blink_on = [2]
+# marker_id_blink_off = [1]
 stream_name = "ExperimentMarkers"
 
 lsl_stream_info = StreamInfo(
@@ -99,7 +102,6 @@ run_experiment = False
 num_flick = 0
 num_trial = 1
 iti_delaying = False
-delaying = 1
 
 #draw intro text
 screen.fill((128, 128, 128))
@@ -134,7 +136,7 @@ while True:
         event = pygame.event.wait() 
         if event.type == pygame.KEYDOWN and event.key==pygame.K_SPACE:
             print("Experiment starts!")
-            print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             lsl_outlet.push_sample(marker_id_start, local_clock())
             if with_stimulation:
                 task.start()
@@ -158,8 +160,12 @@ while True:
 
         # Introduce intertrial delay 
         if num_flick  == num_flick_total_trial: 
+            timestamp = local_clock()
+
+           
+            lsl_outlet.push_sample(marker_id_trial_end, timestamp)
             # add some random ITI 
-            iti = randrange(450, 950, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
+            iti = randrange(450, 451, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
             print("random iti ", iti + 0.05)
             num_flick = 0
             iti_delaying = False
@@ -175,23 +181,35 @@ while True:
         # if it's not in intertrial, do the blinking
 
         if not iti_delaying:
+            timestamp = local_clock()
+
+            
 
             # print('blink blink')
-            print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
-            timestamp = local_clock()
+            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
 
             if display:
                 # print('off')
-                lsl_outlet.push_sample(marker_id_blink_off, timestamp)
+                # lsl_outlet.push_sample(marker_id_blink_off, timestamp)
                 screen.fill((0, 0, 0))
                 draw_fixation_cross()
+                num_flick += 1 #full cycle
+                if num_flick  == num_flick_total_trial: 
+                    # a trial ended
+                    print('trial ends')
+                    print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+
             else:
+                # a trial starts
+                if num_flick == 0:
+                    print('trial starts')
+                    print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+                    lsl_outlet.push_sample(marker_id_trial_start, timestamp)
                 # print('on')
-                lsl_outlet.push_sample(marker_id_blink_on, timestamp)
+                # lsl_outlet.push_sample(marker_id_blink_on, timestamp)
                 screen.fill((255, 255, 255))
                 draw_fixation_cross()
 
-            num_flick += 1
 
             if num_flick == num_flick_total_trial:
                 num_trial += 1
@@ -199,18 +217,6 @@ while True:
             display = not display
             fpsClock.tick()
 
-        # # If it's in intertrial, don't do anything 
-        # else: 
-        #     # Count how many more to let this loop pass
-        #     # Since pygame runs at 10hz, 500ms delay will equal to 5 empty loops.
-
-        #     # print("delaying ", delaying )
-        #     # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
-        #     if delaying == iti-1: 
-        #         iti_delaying = False
-        #         delaying = 1
-        #     else:
-        #         delaying +=1
            
     # updates
     pygame.display.flip()
