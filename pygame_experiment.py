@@ -24,7 +24,9 @@ num_trials_total = 20
 total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 
 flicker_freq = 10 # SSVEP for 10Hz
-num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) # how many times it should flicker during each trial
+
+# how many times it should flicker during each trial. Times two, for on and off
+num_flick_total_trial = int(flicker_freq * (flicker_dur/1000)) * 2
 
 with_stimulation = False # turn to True for stimulation 
 
@@ -33,8 +35,11 @@ print("Total run time without ITI: ~", total_time)
 ######### Pygame parameters ##############
 
 pygame.init()
- 
-fps = 10 ## refresh rate. 
+
+# full cycle of on and off will be 100ms (for 10hz), so for each on and off we need 50ms (20hz)
+fps = int(flicker_freq*2)
+print(fps)
+
 fpsClock = pygame.time.Clock()
  
 screen = pygame.display.set_mode((0, 0), pygame.RESIZABLE)
@@ -89,7 +94,7 @@ lsl_outlet = StreamOutlet(lsl_stream_info)
 
 
 ########### ###############
-display = True
+display = False
 run_experiment = False
 num_flick = 0
 num_trial = 1
@@ -113,7 +118,6 @@ def draw_fixation_cross():
     pygame.draw.line(screen, (255,0,0), start_pos_v, end_pos_v)
 
 
-
 # Game loop.
 while True:
     # quit condition
@@ -130,7 +134,7 @@ while True:
         event = pygame.event.wait() 
         if event.type == pygame.KEYDOWN and event.key==pygame.K_SPACE:
             print("Experiment starts!")
-            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+            print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             lsl_outlet.push_sample(marker_id_start, local_clock())
             if with_stimulation:
                 task.start()
@@ -155,8 +159,8 @@ while True:
         # Introduce intertrial delay 
         if num_flick  == num_flick_total_trial: 
             # add some random ITI 
-            iti = randrange(400, 900, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 100ms delay from fps
-            print("random iti ", iti + 0.1)
+            iti = randrange(450, 950, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
+            print("random iti ", iti + 0.05)
             num_flick = 0
             iti_delaying = False
             time_bef = local_clock()
@@ -164,25 +168,27 @@ while True:
             while(time_now - time_bef < iti):
                 time_now = local_clock()
             
+            
 
         ## Blinking mechansim
 
         # if it's not in intertrial, do the blinking
+
         if not iti_delaying:
 
             # print('blink blink')
-            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+            print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             timestamp = local_clock()
 
             if display:
-                # print('on')
+                # print('off')
                 lsl_outlet.push_sample(marker_id_blink_off, timestamp)
-                screen.fill((255, 255, 255))
+                screen.fill((0, 0, 0))
                 draw_fixation_cross()
             else:
-                # print('off')
+                # print('on')
                 lsl_outlet.push_sample(marker_id_blink_on, timestamp)
-                screen.fill((0, 0, 0))
+                screen.fill((255, 255, 255))
                 draw_fixation_cross()
 
             num_flick += 1
