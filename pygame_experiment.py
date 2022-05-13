@@ -20,7 +20,7 @@ import nidaqmx
 
 ########## Exerpiment flow paramters ######## 
 flicker_dur = 2000 # 2 seconds
-num_trials_total = 5 #20 usually
+num_trials_total = 20 #
 total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 
 flicker_freq = 10 # SSVEP for 10Hz
@@ -160,12 +160,14 @@ while True:
 
         # Introduce intertrial delay 
         if num_flick  == num_flick_total_trial: 
+            # a trial ended
             timestamp = local_clock()
-
-           
+            # print('trial ends')
+            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
             lsl_outlet.push_sample(marker_id_trial_end, timestamp)
+
             # add some random ITI 
-            iti = randrange(450, 451, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
+            iti = randrange(450, 951, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
             print("random iti ", iti + 0.05)
             num_flick = 0
             iti_delaying = False
@@ -182,9 +184,6 @@ while True:
 
         if not iti_delaying:
             timestamp = local_clock()
-
-            
-
             # print('blink blink')
             # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
 
@@ -194,16 +193,12 @@ while True:
                 screen.fill((0, 0, 0))
                 draw_fixation_cross()
                 num_flick += 1 #full cycle
-                if num_flick  == num_flick_total_trial: 
-                    # a trial ended
-                    print('trial ends')
-                    print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
 
             else:
                 # a trial starts
                 if num_flick == 0:
-                    print('trial starts')
-                    print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+                    # print('trial starts')
+                    # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
                     lsl_outlet.push_sample(marker_id_trial_start, timestamp)
                 # print('on')
                 # lsl_outlet.push_sample(marker_id_blink_on, timestamp)
