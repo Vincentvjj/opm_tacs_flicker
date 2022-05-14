@@ -20,7 +20,7 @@ import nidaqmx
 
 ########## Exerpiment flow paramters ######## 
 flicker_dur = 2000 # 2 seconds
-num_trials_total = 20 #
+num_trials_total = 20 #20 normally
 total_time = flicker_dur * num_trials_total # ~30 seconds + ITI
 
 flicker_freq = 10 # SSVEP for 10Hz
@@ -100,7 +100,7 @@ lsl_outlet = StreamOutlet(lsl_stream_info)
 display = False
 run_experiment = False
 num_flick = 0
-num_trial = 1
+num_trial = 0
 iti_delaying = False
 
 #draw intro text
@@ -147,10 +147,15 @@ while True:
     # controlling the experiment flow
     else:
         # Run finishes
-        if num_trial > num_trials_total:
+        if num_trial >= num_trials_total:
             #ends the experiment
+            timestamp = local_clock()
+
+            ## pushes the last trial end
+            lsl_outlet.push_sample(marker_id_trial_end, timestamp)
+
             # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
-            lsl_outlet.push_sample(marker_id_end, local_clock())
+            lsl_outlet.push_sample(marker_id_end, timestamp)
             if with_stimulation:
                 task.close()
             run_experiment = False
@@ -167,8 +172,8 @@ while True:
             lsl_outlet.push_sample(marker_id_trial_end, timestamp)
 
             # add some random ITI 
-            iti = randrange(450, 951, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
-            print("random iti ", iti + 0.05)
+            iti = randrange(500, 1000, 1)/1000  #500ms to 1000ms, but since before this line is called there is already 50ms delay from fps
+            print("random iti: %f, time: %s" % (iti, datetime.now().strftime("%H:%M:%S.%f"))) # print timestamps
             num_flick = 0
             iti_delaying = False
             time_bef = local_clock()
@@ -179,35 +184,30 @@ while True:
             
 
         ## Blinking mechansim
-
         # if it's not in intertrial, do the blinking
 
         if not iti_delaying:
             timestamp = local_clock()
             # print('blink blink')
-            # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
+            # print("flick: %i, time: %s" % (num_flick, datetime.now().strftime("%H:%M:%S.%f"))) # print timestamps
 
             if display:
-                # print('off')
-                # lsl_outlet.push_sample(marker_id_blink_off, timestamp)
                 screen.fill((0, 0, 0))
                 draw_fixation_cross()
                 num_flick += 1 #full cycle
+                if num_flick == num_flick_total_trial:
+                    num_trial += 1
 
             else:
-                # a trial starts
+                # a trial starts for the first on flicker
                 if num_flick == 0:
-                    # print('trial starts')
                     # print(datetime.now().strftime("%H:%M:%S.%f")) # print timestamps
                     lsl_outlet.push_sample(marker_id_trial_start, timestamp)
-                # print('on')
-                # lsl_outlet.push_sample(marker_id_blink_on, timestamp)
                 screen.fill((255, 255, 255))
                 draw_fixation_cross()
 
 
-            if num_flick == num_flick_total_trial:
-                num_trial += 1
+            
 
             display = not display
             fpsClock.tick()
