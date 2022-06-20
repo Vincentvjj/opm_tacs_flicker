@@ -7,15 +7,15 @@ from scipy import signal
 sfreq = 24000
 
 target_freq = 10 # 10hz
-carrier_freq = 40 # 40hz
+carrier_freq = 220 # 40hz
 
-amplitude = 1
-duration = 2 # 10 s
+amplitude = 0.5
+duration = 3 # 10 s
 t_samples = np.arange(duration*sfreq)
 carrier = np.sin(2 * np.pi * carrier_freq * t_samples/sfreq) * amplitude
 modulator = np.sin(2 * np.pi * target_freq * t_samples/sfreq) 
-am_stim = amplitude * 0.5 * (carrier * modulator / 2 ) #1mA p2p
-# am_stim = (amplitude + modulator * amplitude) * carrier /2 #100 % modulation index
+# am_stim = amplitude * 0.5 * (carrier * modulator / 2 ) #1mA p2p
+am_stim = (amplitude + modulator * amplitude) * carrier /2 #100 % modulation index
 # am_stim = (amplitude+0.1 + modulator * 0.9) * carrier /2 #90 % modulation index
 
 
